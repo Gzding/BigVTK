@@ -1,7 +1,8 @@
+import os
 import sys
 
 # Qt
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QFrame, QLabel)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, QFrame, QLabel, QFileDialog)
 from PyQt6.QtGui import (QIcon, QAction, QPixmap, QFont)
 from PyQt6.QtCore import (QThread, QObject)
 
@@ -12,7 +13,7 @@ from vtkmodules.vtkInteractionStyle import vtkInteractorStyleImage,vtkInteractor
 from vtkmodules.vtkCommonColor import vtkNamedColors
 from vtkmodules.vtkFiltersSources import (vtkCylinderSource, vtkConeSource)
 # render flow
-from vtkmodules.vtkRenderingCore import (vtkImageMapper, vtkImageSliceMapper,  vtkImageActor, vtkActor, vtkPolyDataMapper, vtkRenderWindow, vtkRenderWindowInteractor3D, vtkRenderWindowInteractor, vtkRenderer, vtkInteractorStyle, vtkInteractorStyle3D, vtkCamera, vtkColorTransferFunction, vtkVolumeProperty, vtkVolume)
+from vtkmodules.vtkRenderingCore import (vtkImageMapper, vtkImageSliceMapper,  vtkImageActor, vtkActor, vtkPolyDataMapper, vtkRenderWindow, vtkRenderWindowInteractor3D, vtkRenderWindowInteractor, vtkRenderer, vtkInteractorStyle, vtkInteractorStyle3D, vtkCamera, vtkColorTransferFunction, vtkVolumeProperty, vtkVolume, vtkPointPicker)
 from vtkmodules.vtkRenderingUI import vtkGenericRenderWindowInteractor
 # vtk - qt
 from vtkmodules.qt.QVTKRenderWindowInteractor import (QVTKRenderWindowInteractor, QVTKRenderWidgetConeExample)
@@ -40,7 +41,6 @@ import itk
 class MainWindow(QMainWindow):
     """QMainWindow派生的程序窗口类"""
 
-    allQVTKWidgets = []
 
     def __init__(self, windowName, iconPath):
         """构造函数"""
@@ -55,11 +55,6 @@ class MainWindow(QMainWindow):
         self.center()
         self.show() # 显示窗口
         
-    # def resizeEvent(self, a0):
-    #     """ 需保持窗口比例，以及控件的比例 """
-    #     super().resizeEvent(a0)
-
-
     def center(self):
         """将程序窗口居中"""
 
@@ -99,89 +94,70 @@ class MainWindow(QMainWindow):
         openAction = QAction(QIcon('res/open_mso.png'), '&打开', self)
         openAction.setShortcut('Ctrl+O')
         openAction.setStatusTip('打开文件')
-        openAction.triggered.connect(lambda : print('此处弹出打开文件的对话框'))
-        
-        saveAction = QAction(QIcon('res/save_mso.png'), '&保存', self)
-        saveAction.setShortcut('Ctrl+S')
-        saveAction.setStatusTip('保存文件')
-        saveAction.triggered.connect(lambda : print('此处弹出保存文件的对话框'))
+        openAction.triggered.connect(vtkOpen)
         
         quitAction = QAction(QIcon('res/close_mso.png'), '&退出', self)
         quitAction.setShortcut('Ctrl+Q')
         quitAction.setStatusTip('退出程序')
         quitAction.triggered.connect(self.close)
-        
-        singleAction = QAction(QIcon('res/single_mso.png'), '&个人权限', self)
-        singleAction.setStatusTip('个人权限')
-        singleAction.triggered.connect(lambda : print('此处响应个人权限操作'))
-        
-        groupAction = QAction(QIcon('res/group_mso.png'), '&组权限', self)
-        groupAction.setStatusTip('组权限')
-        groupAction.triggered.connect(lambda : print('此处响应组权限操作'))
  
         mb = self.menuBar()
         
         fm = mb.addMenu('&文件')
+
         fm.addAction(openAction)
-        fm.addAction(saveAction)
-        
-        fm.addSeparator()
-        subMenu = fm.addMenu(QIcon('res/admin_mso.png'), '权限')
-        subMenu.addAction(singleAction)
-        subMenu.addAction(groupAction)
-        
         fm.addSeparator()
         fm.addAction(quitAction)
 
-        action1 = QAction(QIcon("res/save_mso.png"), "&渲染", self)
+        action1 = QAction(QIcon("res/save_mso.png"), "&视图", self)
         # action1.setShortcut(shortcut)
-        action1.setStatusTip("GPU体渲染")
-        action1.triggered.connect(vtkGPU)
+        action1.setStatusTip("显示三视图和三正交视图")
+        action1.triggered.connect(VtkThreeView)
         mb.addAction(action1)
 
-        action2 = QAction(QIcon("res/save_mso.png"), "&分割", self)
+        action2 = QAction(QIcon("res/save_mso.png"), "&渲染", self)
         # action1.setShortcut(shortcut)
-        action2.setStatusTip("区域增长分割渲染")
-        action2.triggered.connect(vtkGPU)
+        action2.setStatusTip("GPU体渲染")
+        action2.triggered.connect(VtkGPU)
         mb.addAction(action2)
+
+        action3 = QAction(QIcon("res/save_mso.png"), "&分割", self)
+        # action1.setShortcut(shortcut)
+        action3.setStatusTip("区域增长分割渲染")
+        action3.triggered.connect(VtkSeg)
+        mb.addAction(action3)
 
 
     def getFrame(self):
         return self.frame
 
-    def addQVTKWidget(self, widget):
-        """ 存储QVTK widget 以便程序结束时free """
-        self.allQVTKWidgets.append(widget)
+
+
+def vtkOpen():
+    """"""
+    base_dir = "data/"
+    folder = QFileDialog.getExistingDirectory(win, "选择数据文件夹", directory=base_dir)
+    # data reader
+    reader.SetDirectoryName(folder)
+    reader.Update()
+    global dataReady
+    dataReady = True
+
+
+def VtkThreeView():
     
-    def closeEvent(self, event):
-        """ 对于由QVTK创建的QWidget要手动free，否则关闭程序时会报错。
+    if dataReady == False:
+        return
 
-        程序关闭时报错：
-        “vtkWin32OpenGLRenderWin:102    ERR| vtkWin32OpenGLRenderWindow (000001638236BB70): wglMakeCurrent failed in Clean(), error: 6”
-        
-        搜到了此类问题，解决方法是对QVTK形式的widget要手动free，即要调用方法Finalize()
-        """
-        for widget in self.allQVTKWidgets:
-            widget.Finalize()
-        
-        # 还是有些东西没有free干净(当点击程序窗口的x时)
-        # 但在聚焦到某渲染窗口按键e退出时，就没事
-        # 考虑先研究vtk处理事件的源码，再解决
-
-
-
-
-reader = vtkDICOMImageReader()
-renWin = vtkRenderWindow()
-viewports = [[0.0, 0.0, 0.25, 0.5], [0.25, 0.5, 0.5, 1.0], [0.0, 0.5, 0.25, 1.0], [0.25, 0.0, 0.5, 0.5], [0.5, 0.0, 1.0, 1.0]]
-
-def VtkThreeView(win, path):
     colors = vtkNamedColors()
     
     # 渲染流程
     # renWin = vtkRenderWindow()
     iren = vtkRenderWindowInteractor()
     iren.SetRenderWindow(renWin)
+    picker = vtkPointPicker()
+    iren.SetPicker(picker)
+    # style = PointPickerInteractorStyle()
     style = vtkInteractorStyleTrackballCamera()
     # style = vtkInteractorStyleImage()
     iren.SetInteractorStyle(style)
@@ -191,24 +167,10 @@ def VtkThreeView(win, path):
     widget = QVTKRenderWindowInteractor(parent=win.getFrame(), rw=renWin, iren=iren)
     box.addWidget(widget)
     win.getFrame().setLayout(box)
-    win.addQVTKWidget(widget)
-
-
-
-    # 下述是vtk数据处理流程
-
-
-
-    # data reader
-    folder = path # 先暂时使用原来的ct数据，因为gdcm用不了
-    # reader = vtkDICOMImageReader()
-    reader.SetDirectoryName(folder)
-    reader.Update()
 
     # # 测试itk-vtk image转换功能：正常
     # myitkImage = itk.image_from_vtk_image(reader.GetOutput())
     # image = itk.vtk_image_from_image(myitkImage)
-
 
 
     # 三正交视图
@@ -274,106 +236,6 @@ def VtkThreeView(win, path):
         planeActor.RotateZ(rotateAngles[i])
         planeRen.AddActor(planeActor)
 
-
-    Dimension = 2
-    PixelType = itk.UC
-    ImageType = itk.Image[PixelType, Dimension]
-
-    # vtkToItkFilter = itk.VTKImageToImageFilter[ImageType].New()
-    # vtkToItkFilter.SetInput(magnitude.GetOutput())
-    # vtkToItkFilter.Update()
-    # myitkImage = vtkToItkFilter.GetOutput()
-
-    myitkImage = itk.image_from_vtk_image(reader.GetOutput())
-
-    # print(myitkImage)
-    # exit(0)
-    
-
-    # setup the pipeline
-    if3 = itk.Image[itk.SS, 3]
-    itkfilter = itk.NeighborhoodConnectedImageFilter[if3, if3].New()
-    itkfilter.SetInput(myitkImage)
-    itkfilter.SetLower(-100)
-    itkfilter.SetUpper(1000)
-    seeds = [(256, 256, 100)]
-    pixelidx = itk.Index[3]()
-    for (x, y, z) in seeds:
-        pixelidx.SetElement(0, x)
-        pixelidx.SetElement(1, y)
-        pixelidx.SetElement(2, z)
-        itkfilter.AddSeed(pixelidx)	
-    size = itk.Size[3]()
-    size.SetElement(0, 3)
-    size.SetElement(1, 3)
-    size.SetElement(2, 3)
-    itkfilter.SetRadius(size)
-    itkfilter.SetReplaceValue(255)
-
-    itkfilter.Update()
-
-    vtkimage = itk.vtk_image_from_image(itkfilter.GetOutput())
-
-    marchingcube = vtkMarchingCubes()
-    marchingcube.SetInputData(vtkimage)
-    marchingcube.SetValue(0, 140)
-
-    smooth = vtkSmoothPolyDataFilter()
-    smooth.AddInputConnection(marchingcube.GetOutputPort())
-    smooth.SetRelaxationFactor(0.01)
-    smooth.SetNumberOfIterations(10)
-    smooth.SetFeatureEdgeSmoothing(False)
-    smooth.SetBoundarySmoothing(False)
-    smooth.Update()
-
-    stripper = vtkStripper()
-    stripper.SetInputConnection(smooth.GetOutputPort())
-
-    mmapper = vtkPolyDataMapper()
-    mmapper.SetInputConnection(stripper.GetOutputPort())
-    mmapper.ScalarVisibilityOff()
-
-    mactor = vtkActor()
-    mactor.SetMapper(mmapper)
-    mactor.GetProperty().SetDiffuseColor(1, 0.49, 0.25)
-    mactor.GetProperty().SetSpecular(0.3)
-    mactor.GetProperty().SetSpecularPower(20)
-    mactor.GetProperty().SetOpacity(1.0)
-    mactor.GetProperty().SetColor(1, 0, 0)
-    mactor.GetProperty().SetRepresentationToWireframe()
-
-    mcamera = vtkCamera()
-    mcamera.SetViewUp(0, 0, -1)
-    mcamera.SetPosition(0, 1, 0)
-    mcamera.SetFocalPoint(0, 0, 0)
-    mcamera.ComputeViewPlaneNormal()
-    mcamera.Dolly(2.0)
-
-    mrenderer = vtkRenderer()
-    mrenderer.AddActor(mactor)
-    mrenderer.SetActiveCamera(mcamera)
-    # mrenderer.SetBackground(1, 1, 1)
-    mrenderer.SetViewport(*viewports[4])
-    mrenderer.ResetCamera()
-
-    renWin.AddRenderer(mrenderer)
-
-
-    ractor = vtkImageActor()
-    ractor.GetMapper().SetInputData(vtkimage)
-    rrenderer = vtkRenderer()
-    rrenderer.SetViewport(*viewports[4])
-    rrenderer.AddActor(ractor)
-    rrenderer.ResetCamera()
-
-    # renWin.AddRenderer(rrenderer)
-
-
-
-
-
-
-
     # 开始渲染
     widget.Render()
 
@@ -383,9 +245,12 @@ def VtkThreeView(win, path):
     widget.Start()
 
     
-def vtkGPU():
+def VtkGPU():
     """"""
-    
+
+    if dataReady == False:
+        return
+
     # 体渲染
 
     # 高斯平滑
@@ -457,11 +322,88 @@ def vtkGPU():
 
     renWin.AddRenderer(isoRen)
 
+# 分割过程很慢
+def VtkSeg():
+    """"""
+    if dataReady == False:
+        return
 
+    myitkImage = itk.image_from_vtk_image(reader.GetOutput())
 
+    # setup the pipeline
+    if3 = itk.Image[itk.SS, 3]
+    itkfilter = itk.NeighborhoodConnectedImageFilter[if3, if3].New()
+    itkfilter.SetInput(myitkImage)
+    itkfilter.SetLower(-200)
+    itkfilter.SetUpper(200)
+    seeds = [(255, 205, 109)]
+    pixelidx = itk.Index[3]()
+    for (x, y, z) in seeds:
+        pixelidx.SetElement(0, x)
+        pixelidx.SetElement(1, y)
+        pixelidx.SetElement(2, z)
+        itkfilter.AddSeed(pixelidx)	
+    size = itk.Size[3]()
+    size.SetElement(0, 3)
+    size.SetElement(1, 3)
+    size.SetElement(2, 3)
+    itkfilter.SetRadius(size)
+    itkfilter.SetReplaceValue(255)
 
-if __name__ == '__main__':
-    app = QApplication(sys.argv) 
-    win = MainWindow(windowName="VTK-Final", iconPath="./image/icon.png")
-    VtkThreeView(win, "data/result")
-    sys.exit(app.exec())
+    itkfilter.Update()
+
+    vtkimage = itk.vtk_image_from_image(itkfilter.GetOutput())
+
+    marchingcube = vtkMarchingCubes()
+    marchingcube.SetInputData(vtkimage)
+    marchingcube.SetValue(0, 140)
+
+    smooth = vtkSmoothPolyDataFilter()
+    smooth.AddInputConnection(marchingcube.GetOutputPort())
+    smooth.SetRelaxationFactor(0.01)
+    smooth.SetNumberOfIterations(10)
+    smooth.SetFeatureEdgeSmoothing(False)
+    smooth.SetBoundarySmoothing(False)
+    smooth.Update()
+
+    stripper = vtkStripper()
+    stripper.SetInputConnection(smooth.GetOutputPort())
+
+    mmapper = vtkPolyDataMapper()
+    mmapper.SetInputConnection(stripper.GetOutputPort())
+    mmapper.ScalarVisibilityOff()
+
+    mactor = vtkActor()
+    mactor.SetMapper(mmapper)
+    mactor.GetProperty().SetDiffuseColor(1, 0.49, 0.25)
+    mactor.GetProperty().SetSpecular(0.3)
+    mactor.GetProperty().SetSpecularPower(20)
+    mactor.GetProperty().SetOpacity(1.0)
+    mactor.GetProperty().SetColor(1, 0, 0)
+    mactor.GetProperty().SetRepresentationToWireframe()
+
+    mcamera = vtkCamera()
+    mcamera.SetViewUp(0, 0, -1)
+    mcamera.SetPosition(0, 1, 0)
+    mcamera.SetFocalPoint(0, 0, 0)
+    mcamera.ComputeViewPlaneNormal()
+    mcamera.Dolly(2.0)
+
+    mrenderer = vtkRenderer()
+    mrenderer.AddActor(mactor)
+    mrenderer.SetActiveCamera(mcamera)
+    # mrenderer.SetBackground(1, 1, 1)
+    mrenderer.SetViewport(*viewports[4])
+    mrenderer.ResetCamera()
+
+    renWin.AddRenderer(mrenderer)
+
+# folder = "data/result/"
+reader = vtkDICOMImageReader()
+dataReady = False
+renWin = vtkRenderWindow()
+viewports = [[0.0, 0.0, 0.25, 0.5], [0.25, 0.5, 0.5, 1.0], [0.0, 0.5, 0.25, 1.0], [0.25, 0.0, 0.5, 0.5], [0.5, 0.0, 1.0, 1.0]]
+
+app = QApplication(sys.argv)
+win = MainWindow(windowName="VTK-Final", iconPath="./image/icon.png")
+sys.exit(app.exec())
