@@ -89,6 +89,7 @@ class MainWindow(QMainWindow):
         """初始化状态栏"""
         self.sbar = self.statusBar()
 
+
     def initMenu(self):
         """初始化菜单栏"""
         
@@ -99,7 +100,7 @@ class MainWindow(QMainWindow):
 
         openAction = QAction('&打开', self)
         # openAction.setShortcut('Ctrl+O')
-        openAction.setStatusTip('打开文件')
+        openAction.setStatusTip('设置数据路径')
         openAction.triggered.connect(vtkOpen)
         mb.addAction(openAction)
 
@@ -124,6 +125,12 @@ class MainWindow(QMainWindow):
         action4.triggered.connect(VtkLine)
         mb.addAction(action4)
 
+    def setStatusMsg(self, msg):
+        """ 设置状态栏信息 """
+        self.sbar.showMessage(msg)
+
+    def openFolder(self, base="data"):
+        return QFileDialog.getExistingDirectory(self, "请选择数据路径", directory=base)
 
     def getFrame(self):
         return self.frame
@@ -136,13 +143,20 @@ class MainWindow(QMainWindow):
 # 打开数据集路径
 def vtkOpen():
     """"""
-    base_dir = "data/"
-    folder = QFileDialog.getExistingDirectory(win, "选择数据文件夹", directory=base_dir)
+
+    folder = win.openFolder("data")
+    
     # print(folder)
     # data reader
     if folder == "":
-        print("请选择数据路径")
+        print("请重新选择数据路径")
+        win.setStatusMsg("请重新选择数据路径")
         return
+    for f in os.listdir(folder):
+        if f[-4:] != ".dcm":
+            print("请重新选择数据路径")
+            win.setStatusMsg("请重新选择数据路径")
+            return
     reader.SetDirectoryName(folder)
     reader.Update()
     global dataReady
@@ -152,6 +166,8 @@ def vtkOpen():
 def VtkThreeView():
     
     if dataReady == False:
+        print("请先选择数据路径")
+        win.setStatusMsg("请重新选择数据路径")
         return
 
     colors = vtkNamedColors()
@@ -248,13 +264,17 @@ def VtkThreeView():
 
     widget.Initialize()
     widget.Start()
+    global vtkReady
+    vtkReady = True
 
 
 # GPU体重建
 def VtkGPU():
     """"""
 
-    if dataReady == False:
+    if vtkReady == False:
+        print("请先选择数据路径并显示视图")
+        win.setStatusMsg("请先选择数据路径并显示视图")
         return
 
     # 体渲染
@@ -331,8 +351,11 @@ def VtkGPU():
 # 分割过程很慢
 def VtkSeg():
     """"""
-    if dataReady == False:
+    if vtkReady == False:
+        print("请先选择数据路径并显示视图")
+        win.setStatusMsg("请先选择数据路径并显示视图")
         return
+
 
     myitkImage = itk.image_from_vtk_image(reader.GetOutput())
 
@@ -458,6 +481,12 @@ def SweepLine(line, direction, distance, cols):
 # 血管中心线重建
 def VtkLine():
     """ """
+    if vtkReady == False:
+        print("请先选择数据路径并显示视图")
+        win.setStatusMsg("请先选择数据路径并显示视图")
+        return
+
+    
     # 读取曲线数据
     polyLineReader =vtk.vtkPolyDataReader()
     # polyLineReader.SetFileName("./test.vtk")
@@ -522,7 +551,8 @@ def VtkLine():
 
 # folder = "data/result/"
 reader = vtkDICOMImageReader()
-dataReady = False
+dataReady = False # 数据路径是否设置好
+vtkReady = False # vtk三视图是否显示，即vtk基本流程是否建立
 renWin = vtkRenderWindow()
 viewports = [[0.0, 0.0, 0.25, 0.5], [0.25, 0.5, 0.5, 1.0], [0.0, 0.5, 0.25, 1.0], [0.25, 0.0, 0.5, 0.5], [0.5, 0.0, 1.0, 1.0]]
 
