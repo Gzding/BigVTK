@@ -1,5 +1,7 @@
 backup/
 data/result/*
+data/heartSystolicDicom/*
+test.vtk
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
