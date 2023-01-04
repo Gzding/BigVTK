@@ -91,46 +91,36 @@ class MainWindow(QMainWindow):
 
     def initMenu(self):
         """初始化菜单栏"""
-
-        openAction = QAction(QIcon('res/open_mso.png'), '&打开', self)
-        openAction.setShortcut('Ctrl+O')
-        openAction.setStatusTip('打开文件')
-        openAction.triggered.connect(vtkOpen)
         
-        quitAction = QAction(QIcon('res/close_mso.png'), '&退出', self)
-        quitAction.setShortcut('Ctrl+Q')
-        quitAction.setStatusTip('退出程序')
-        quitAction.triggered.connect(self.close)
- 
+        # 菜单栏
         mb = self.menuBar()
         
-        fm = mb.addMenu('&文件')
+        # 添加选项卡
 
-        fm.addAction(openAction)
-        fm.addSeparator()
-        fm.addAction(quitAction)
+        openAction = QAction('&打开', self)
+        # openAction.setShortcut('Ctrl+O')
+        openAction.setStatusTip('打开文件')
+        openAction.triggered.connect(vtkOpen)
+        mb.addAction(openAction)
 
-        action1 = QAction(QIcon("res/save_mso.png"), "&视图", self)
-        # action1.setShortcut(shortcut)
+        action1 = QAction("&显示视图", self)
         action1.setStatusTip("显示三视图和三正交视图")
         action1.triggered.connect(VtkThreeView)
         mb.addAction(action1)
 
-        action2 = QAction(QIcon("res/save_mso.png"), "&渲染", self)
-        # action1.setShortcut(shortcut)
-        action2.setStatusTip("GPU体渲染")
+
+        action2 = QAction("&体重建", self)
+        action2.setStatusTip("GPU体重建渲染")
         action2.triggered.connect(VtkGPU)
         mb.addAction(action2)
 
-        action3 = QAction(QIcon("res/save_mso.png"), "&分割", self)
-        # action1.setShortcut(shortcut)
+        action3 = QAction("&分割", self)
         action3.setStatusTip("区域增长分割渲染")
         action3.triggered.connect(VtkSeg)
         mb.addAction(action3)
 
-        action4 = QAction(QIcon("res/save_mso.png"), "&血管", self)
-        # action1.setShortcut(shortcut)
-        action4.setStatusTip("血管中心线提取和重建")
+        action4 = QAction("&CPR重建", self)
+        action4.setStatusTip("CPR重建")
         action4.triggered.connect(VtkLine)
         mb.addAction(action4)
 
@@ -138,13 +128,21 @@ class MainWindow(QMainWindow):
     def getFrame(self):
         return self.frame
 
+    def closeEvent(self, a0):
+        # 结束还在运行的vtk流程
+        # print("close")
+        exit()
 
 # 打开数据集路径
 def vtkOpen():
     """"""
     base_dir = "data/"
     folder = QFileDialog.getExistingDirectory(win, "选择数据文件夹", directory=base_dir)
+    # print(folder)
     # data reader
+    if folder == "":
+        print("请选择数据路径")
+        return
     reader.SetDirectoryName(folder)
     reader.Update()
     global dataReady
@@ -456,8 +454,6 @@ def SweepLine(line, direction, distance, cols):
     surface.SetPolys(polys)
 
     return surface
-
-
 
 # 血管中心线重建
 def VtkLine():
