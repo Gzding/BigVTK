@@ -52,7 +52,7 @@ if __name__ == '__main__':
     # 读取曲线数据
     polyLineReader =vtk.vtkPolyDataReader()
     # polyLineReader.SetFileName("./test.vtk")
-    polyLineReader.SetFileName("D:/Desktop/BigVTK/test.vtk")
+    polyLineReader.SetFileName("D:/Desktop/BigVTK/tes_line.vtk")
     polyLineReader.Update()
     #从多段线的输入集生成输出多段线的Filter
     spline = vtk.vtkSplineFilter()

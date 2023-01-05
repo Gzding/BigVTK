@@ -120,10 +120,15 @@ class MainWindow(QMainWindow):
         action3.triggered.connect(VtkSeg)
         mb.addAction(action3)
 
-        action4 = QAction("&CPR重建", self)
-        action4.setStatusTip("CPR重建")
-        action4.triggered.connect(VtkLine)
+        action4 = QAction("&中心线提取", self)
+        action4.setStatusTip("血管中心线提取")
+        action4.triggered.connect(lambda:print("由于环境的版本问题，这个功能暂时不能加入主程序中"))
         mb.addAction(action4)
+
+        action5 = QAction("&CPR重建", self)
+        action5.setStatusTip("CPR重建")
+        action5.triggered.connect(VtkLine)
+        mb.addAction(action5)
 
     def setStatusMsg(self, msg):
         """ 设置状态栏信息 """
@@ -144,8 +149,13 @@ class MainWindow(QMainWindow):
 def vtkOpen():
     """"""
 
+    global dataReady
+
     folder = win.openFolder("data")
     
+    if dataReady:
+        win.setStatusMsg("已经选择过数据")
+        return
     # print(folder)
     # data reader
     if folder == "":
@@ -159,7 +169,6 @@ def vtkOpen():
             return
     reader.SetDirectoryName(folder)
     reader.Update()
-    global dataReady
     dataReady = True
 
 # 三视图和三正交视图
@@ -257,6 +266,8 @@ def VtkThreeView():
         planeActor.RotateZ(rotateAngles[i])
         planeRen.AddActor(planeActor)
 
+    global vtkReady
+    vtkReady = True
     # 开始渲染
     widget.Render()
 
@@ -264,14 +275,12 @@ def VtkThreeView():
 
     widget.Initialize()
     widget.Start()
-    global vtkReady
-    vtkReady = True
+
 
 
 # GPU体重建
 def VtkGPU():
     """"""
-
     if vtkReady == False:
         print("请先选择数据路径并显示视图")
         win.setStatusMsg("请先选择数据路径并显示视图")
@@ -346,7 +355,10 @@ def VtkGPU():
     isoRen.ResetCamera()
     isoRen.ResetCameraClippingRange()
 
+
     renWin.AddRenderer(isoRen)
+
+saveSTL = True
 
 # 分割过程很慢
 def VtkSeg():
@@ -404,6 +416,16 @@ def VtkSeg():
     smooth.SetBoundarySmoothing(False)
     smooth.Update()
 
+    # global saveSTL
+    # if saveSTL:
+    #     #保存分割结果到stl中
+    #     filename = "data/segment/segment.stl"
+    #     stlWriter = vtk.vtkSTLWriter()
+    #     stlWriter.SetFileName(filename)
+    #     stlWriter.SetInputConnection(smooth.GetOutputPort())
+    #     stlWriter.Write()
+    #     saveSTL = False
+
     stripper = vtkStripper()
     stripper.SetInputConnection(smooth.GetOutputPort())
 
@@ -435,6 +457,8 @@ def VtkSeg():
     mrenderer.ResetCamera()
 
     renWin.AddRenderer(mrenderer)
+
+
 
 
 def SweepLine(line, direction, distance, cols):
@@ -490,7 +514,7 @@ def VtkLine():
     # 读取曲线数据
     polyLineReader =vtk.vtkPolyDataReader()
     # polyLineReader.SetFileName("./test.vtk")
-    polyLineReader.SetFileName("D:/Desktop/BigVTK/test.vtk")
+    polyLineReader.SetFileName("D:/Desktop/BigVTK/tes_line.vtk")
     polyLineReader.Update()
     #从多段线的输入集生成输出多段线的Filter
     spline = vtk.vtkSplineFilter()
@@ -537,7 +561,7 @@ def VtkLine():
     
     #Add the actors to the scene
     renderer.AddActor(actor)
-    # renderer.SetBackground(0.1, 0.2, 0.4)
+    renderer.SetBackground(0.1, 0.2, 0.4)
 
     # Set the camera for viewing medical images
     renderer.GetActiveCamera().SetViewUp(0, 0, 1)
